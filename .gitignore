@@ -1,0 +1,24 @@
+# Compiled binaries
+string_splitter_9000
+string_splitter_9000_gui
+*.o
+*.out
+*.exe
+
+# Build artifacts
+*.a
+*.so
+*.dylib
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.log
+
