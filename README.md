@@ -53,6 +53,41 @@ Use the graphical interface to:
 - `string_splitter_9000_gui.c` - GUI version
 - `build_gui.sh` - Build script for GUI version
 - `commit.sh` - Helper script for git commits
+- `.gitignore` - Git ignore rules for build artifacts
+
+## Git Usage
+
+### Making Commits
+
+Use the helper script for easy commits:
+```bash
+./commit.sh "Your commit message here"
+```
+
+This script will:
+- Show current git status
+- Add all changes
+- Commit with your message
+- Show recent commit history
+
+### Manual Git Commands
+
+```bash
+# Check status
+git status
+
+# Add specific files
+git add filename.c
+
+# Add all changes
+git add -A
+
+# Commit
+git commit -m "Your message"
+
+# View commit history
+git log --oneline
+```
 
 ## Version History
 
