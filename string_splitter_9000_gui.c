@@ -3,6 +3,40 @@
 #include <stdlib.h>
 #include <time.h>
 
+// Base64 encoding table
+static const char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Base64 encode function
+int base64_encode(const unsigned char *input, int input_len, char *output, int output_size) {
+    int i, j = 0;
+    unsigned char a, b, c;
+    
+    for (i = 0; i < input_len; i += 3) {
+        a = input[i];
+        b = (i + 1 < input_len) ? input[i + 1] : 0;
+        c = (i + 2 < input_len) ? input[i + 2] : 0;
+        
+        if (j + 4 >= output_size) return -1;
+        
+        output[j++] = base64_table[(a >> 2) & 0x3F];
+        output[j++] = base64_table[((a << 4) | (b >> 4)) & 0x3F];
+        
+        if (i + 1 < input_len) {
+            output[j++] = base64_table[((b << 2) | (c >> 6)) & 0x3F];
+        } else {
+            output[j++] = '=';
+        }
+        
+        if (i + 2 < input_len) {
+            output[j++] = base64_table[c & 0x3F];
+        } else {
+            output[j++] = '=';
+        }
+    }
+    output[j] = '\0';
+    return j;
+}
+
 typedef struct {
     GtkWidget *window;
     GtkWidget *fixed_radio;
@@ -13,7 +47,132 @@ typedef struct {
     GtkWidget *input_text;
     GtkWidget *output_text;
     GtkWidget *split_button;
+    GtkWidget *encode_checkbox;
+    GtkWidget *lang_combo;
 } AppWidgets;
+
+// Language-specific formatting functions
+void format_chunk_bash(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str=\"${str}");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\"\n");
+}
+
+void format_chunk_python(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\"\n");
+}
+
+void format_chunk_ruby(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\"\n");
+}
+
+void format_chunk_c(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "strcat(str, \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\");\n");
+}
+
+void format_chunk_cpp(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\";\n");
+}
+
+void format_chunk_csharp(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\";\n");
+}
+
+void format_chunk_perl(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "$str .= \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\";\n");
+}
+
+void format_chunk_java(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\";\n");
+}
+
+void format_chunk_javascript(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\";\n");
+}
+
+void format_chunk_vba(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str = str & \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\"\n");
+}
+
+void format_chunk_sql(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "SET str = str + '");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "'\n");
+}
+
+void format_chunk_r(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str <- paste0(str, \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\")\n");
+}
+
+void format_chunk_php(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "$str .= \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\";\n");
+}
+
+void format_chunk_rust(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str.push_str(\"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\");\n");
+}
+
+void format_chunk_go(GString *output, const char *chunk, int chunk_len) {
+    g_string_append(output, "str += \"");
+    for (int i = 0; i < chunk_len; i++) {
+        g_string_append_c(output, chunk[i]);
+    }
+    g_string_append(output, "\"\n");
+}
+
+typedef void (*format_chunk_func)(GString *, const char *, int);
 
 static void split_string(GtkWidget *widget, gpointer data) {
     AppWidgets *widgets = (AppWidgets *)data;
@@ -35,7 +194,51 @@ static void split_string(GtkWidget *widget, gpointer data) {
     gtk_text_buffer_set_text(output_buffer, "", -1);
     
     int len = strlen(input_str);
+    char *work_str = g_strdup(input_str);
+    
+    // Handle base64 encoding if checkbox is checked
+    gboolean encode_plaintext = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets->encode_checkbox));
+    if (encode_plaintext) {
+        char encoded[700000];
+        int encoded_len = base64_encode((unsigned char *)work_str, len, encoded, sizeof(encoded));
+        if (encoded_len >= 0) {
+            g_free(work_str);
+            work_str = g_strdup(encoded);
+            len = strlen(work_str);
+        } else {
+            GString *error = g_string_new("Error: Base64 encoding failed (buffer too small).\n");
+            gtk_text_buffer_set_text(output_buffer, error->str, -1);
+            g_string_free(error, TRUE);
+            g_free(work_str);
+            g_free(input_str);
+            return;
+        }
+    }
+    
     GString *output = g_string_new("");
+    
+    // Get language selection
+    gint lang_index = gtk_combo_box_get_active(GTK_COMBO_BOX(widgets->lang_combo));
+    format_chunk_func format_func = NULL;
+    
+    switch (lang_index) {
+        case 0: format_func = format_chunk_bash; break;
+        case 1: format_func = format_chunk_python; break;
+        case 2: format_func = format_chunk_ruby; break;
+        case 3: format_func = format_chunk_c; break;
+        case 4: format_func = format_chunk_cpp; break;
+        case 5: format_func = format_chunk_csharp; break;
+        case 6: format_func = format_chunk_perl; break;
+        case 7: format_func = format_chunk_java; break;
+        case 8: format_func = format_chunk_javascript; break;
+        case 9: format_func = format_chunk_vba; break;
+        case 10: format_func = format_chunk_sql; break;
+        case 11: format_func = format_chunk_r; break;
+        case 12: format_func = format_chunk_php; break;
+        case 13: format_func = format_chunk_rust; break;
+        case 14: format_func = format_chunk_go; break;
+        default: format_func = format_chunk_python; break;
+    }
     
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets->fixed_radio))) {
         // Fixed length splitting
@@ -46,11 +249,8 @@ static void split_string(GtkWidget *widget, gpointer data) {
             g_string_append(output, "Error: Size must be greater than 0\n");
         } else {
             for (int i = 0; i < len; i += n) {
-                g_string_append(output, "Str = Str + \"");
-                for (int j = i; j < i + n && j < len; j++) {
-                    g_string_append_c(output, input_str[j]);
-                }
-                g_string_append(output, "\"\n");
+                int chunk_len = (i + n < len) ? n : len - i;
+                format_func(output, &work_str[i], chunk_len);
             }
         }
     } else {
@@ -70,13 +270,7 @@ static void split_string(GtkWidget *widget, gpointer data) {
                 if (i + chunk_size > len) {
                     chunk_size = len - i;
                 }
-                
-                g_string_append(output, "Str = Str + \"");
-                for (int j = i; j < i + chunk_size && j < len; j++) {
-                    g_string_append_c(output, input_str[j]);
-                }
-                g_string_append(output, "\"\n");
-                
+                format_func(output, &work_str[i], chunk_size);
                 i += chunk_size;
             }
         }
@@ -86,6 +280,7 @@ static void split_string(GtkWidget *widget, gpointer data) {
     gtk_text_buffer_set_text(output_buffer, output->str, -1);
     
     g_string_free(output, TRUE);
+    g_free(work_str);
     g_free(input_str);
 }
 
@@ -110,13 +305,24 @@ int main(int argc, char *argv[]) {
     // Create main window
     widgets.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(widgets.window), "String Splitter 9000");
-    gtk_window_set_default_size(GTK_WINDOW(widgets.window), 800, 600);
+    gtk_window_set_default_size(GTK_WINDOW(widgets.window), 800, 700);
     g_signal_connect(widgets.window, "destroy", G_CALLBACK(on_destroy), NULL);
     
     // Create main container
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_container_add(GTK_CONTAINER(widgets.window), vbox);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    
+    // Base64 encoding checkbox
+    GtkWidget *encode_frame = gtk_frame_new("Encoding");
+    gtk_box_pack_start(GTK_BOX(vbox), encode_frame, FALSE, FALSE, 0);
+    
+    GtkWidget *encode_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_container_add(GTK_CONTAINER(encode_frame), encode_box);
+    gtk_container_set_border_width(GTK_CONTAINER(encode_box), 10);
+    
+    widgets.encode_checkbox = gtk_check_button_new_with_label("Encode plaintext to Base64");
+    gtk_box_pack_start(GTK_BOX(encode_box), widgets.encode_checkbox, FALSE, FALSE, 0);
     
     // Mode selection
     GtkWidget *mode_frame = gtk_frame_new("Split Mode");
@@ -170,6 +376,28 @@ int main(int argc, char *argv[]) {
     gtk_grid_attach(GTK_GRID(options_grid), max_label, 2, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(options_grid), widgets.max_entry, 3, 1, 1, 1);
     
+    // Language selection
+    GtkWidget *lang_label = gtk_label_new("Language:");
+    widgets.lang_combo = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Bash");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Python");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Ruby");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "C");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "C++");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "C#");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Perl");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Java");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "JavaScript");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "VBA");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "SQL");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "R");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "PHP");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Rust");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets.lang_combo), "Go");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets.lang_combo), 1); // Default to Python
+    gtk_grid_attach(GTK_GRID(options_grid), lang_label, 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(options_grid), widgets.lang_combo, 1, 2, 3, 1);
+    
     // Input frame
     GtkWidget *input_frame = gtk_frame_new("Enter the string to be split:");
     gtk_box_pack_start(GTK_BOX(vbox), input_frame, TRUE, TRUE, 0);
@@ -178,7 +406,7 @@ int main(int argc, char *argv[]) {
     gtk_container_add(GTK_CONTAINER(input_frame), input_scrolled);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(input_scrolled),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(input_scrolled), 150);
+    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(input_scrolled), 120);
     
     widgets.input_text = gtk_text_view_new();
     gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(widgets.input_text), GTK_WRAP_WORD);
@@ -214,4 +442,3 @@ int main(int argc, char *argv[]) {
     
     return 0;
 }
-
