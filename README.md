@@ -1,6 +1,10 @@
 # String Splitter 9000
 
-A powerful string splitting tool available in both command-line and GUI versions.
+A string splitting tool available in both command-line and GUI versions.
+
+## Developer Note to Users ##
+
+This is a very basic string splitting tool that was made to help making the process of encoding text into a bunch of different strings that get concatenated together at the end for cybersecurity work. This was tedious to do by hand, so hopefully this helps you too. 
 
 ## Features
 
